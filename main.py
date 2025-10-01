@@ -143,13 +143,27 @@ def main():
     
     # Configurar manejadores de señales
     signal.signal(signal.SIGINT, manejador_senal)
-    signal.signal(signal.SIGTERM, manejador_senal)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, manejador_senal)
     
-    # Verificar permisos de administrador
+    # Verificar permisos según el sistema operativo
     if sys.platform.startswith('linux') and os.geteuid() != 0:
         print("Error: Este programa necesita permisos de administrador para capturar tráfico de red")
         print("Ejecuta con: sudo python3 main.py")
         sys.exit(1)
+    elif sys.platform.startswith('win'):
+        import ctypes
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            print("Error: Este programa necesita permisos de administrador para capturar tráfico de red")
+            print("Ejecuta como administrador")
+            sys.exit(1)
+    
+    # Inicializar directorios
+    try:
+        from inicializar_proyecto import crear_directorios
+        crear_directorios()
+    except ImportError:
+        pass
     
     # Inicializar y ejecutar el monitor
     monitor = MonitorRed()

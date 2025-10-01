@@ -178,7 +178,7 @@ class DetectorAmenazas:
     def _detectar_protocolos_no_autorizados(self, paquete):
         protocolos_no_autorizados = self.config_reglas.get('protocolos_no_autorizados', [])
         if paquete.protocolo.upper() in protocolos_no_autorizados:
-            self. _generar_alerta(
+            self._generar_alerta(
                 'PROTOCOLO_NO_AUTORIZADO',
                 f'Uso detectado de protocolo no autorizado ({paquete.protocolo}) desde {paquete.ip_origen}',
                 paquete, 'BAJA'

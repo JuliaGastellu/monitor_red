@@ -1,0 +1,18 @@
+{
+    "interfaz_red": null,
+    "ruta_bd": "data/monitor_red.db",
+    "puerto_web": 8080,
+    "debug_web": false,
+    "alertas_email": {
+        "habilitado": false,
+        "servidor_smtp": "smtp.gmail.com",
+        "puerto_smtp": 587,
+        "usuario_smtp": "tu_email@gmail.com",
+        "password_smtp": "tu_password",
+        "destinatario": "alertas@tudominio.com"
+    },
+    "alertas_log": {
+        "habilitado": true,
+        "archivo_log": "data/logs/alertas.log"
+    }
+}

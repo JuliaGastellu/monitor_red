@@ -61,6 +61,6 @@ def inicializar_bd(engine):
     Base.metadata.create_all(engine)
 
 def crear_sesion(engine):
-    """Crea y retorna una nueva sesión de base de datos."""
+    """Crea y retorna una clase de sesión de base de datos."""
     Session = sessionmaker(bind=engine)
-    return Session()
+    return Session
