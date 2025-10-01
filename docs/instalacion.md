@@ -2,7 +2,7 @@
 
 ## Requisitos
 
-- Python 3.8+
+- Python 3.7+
 - pip
 
 ## Pasos de Instalación

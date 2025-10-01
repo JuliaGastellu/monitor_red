@@ -1,6 +1,8 @@
 from scapy.layers.http import HTTPRequest, HTTPResponse
 from scapy.layers.dns import DNS, DNSQR, DNSRR
-from scapy.layers.inet import TCP, Raw
+from scapy.layers.inet import TCP
+from scapy.packet import Raw
+
 
 def analizar_http(paquete_scapy):
     """

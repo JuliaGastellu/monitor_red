@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Sistema de Monitoreo y Análisis de Tráfico de Red
 Punto de entrada principal del sistema
