@@ -4,8 +4,8 @@ setup(
     name="monitor-red",
     version="1.0.0",
     description="Sistema de Monitoreo y Análisis de Tráfico de Red",
-    author="Tu Nombre",
-    author_email="tu_email@dominio.com",
+    author="Julia Gastellu",
+    author_email="julia.gastellu@email.com",
     packages=find_packages(),
     install_requires=[
         "scapy>=2.4.5",
