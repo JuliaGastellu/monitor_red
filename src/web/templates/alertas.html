@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>Historial de Alertas</h1>
+    <p>Mostrando las últimas 100 alertas de seguridad registradas.</p>
+</div>
+
+<div class="card full-width">
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% elif alertas %}
+        <table class="alertas-historico-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Tipo</th>
+                    <th>Severidad</th>
+                    <th>IP Origen</th>
+                    <th>IP Destino</th>
+                    <th>Mensaje</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alerta in alertas %}
+                <tr class="severidad-{{ alerta.severidad.lower() }}">
+                    <td>{{ obtener_timestamp_legible(alerta.timestamp) }}</td>
+                    <td>{{ alerta.tipo_alerta }}</td>
+                    <td>{{ alerta.severidad }}</td>
+                    <td>{{ alerta.ip_origen or 'N/A' }}</td>
+                    <td>{{ alerta.ip_destino or 'N/A' }}</td>
+                    <td>{{ alerta.mensaje }}</td>
+                    <td class="detalles-td"><pre>{{ alerta.detalles }}</pre></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No hay alertas para mostrar.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <h1>Dashboard en Tiempo Real</h1>
+    <p>Mostrando el estado actual de la red.</p>
+</div>
+
+<div class="grid-container">
+    <div class="card">
+        <h2>Estadísticas Generales</h2>
+        <div id="estadisticas-generales">
+            <p><strong>Paquetes en último intervalo:</strong> <span id="stat-paquetes">Cargando...</span></p>
+            <p><strong>Volumen en último intervalo:</strong> <span id="stat-volumen">Cargando...</span></p>
+            <p><strong>Paquetes por segundo:</strong> <span id="stat-pps">Cargando...</span></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Distribución de Protocolos</h2>
+        <div class="chart-container">
+            <canvas id="protocolos-chart"></canvas>
+        </div>
+    </div>
+
+    <div class="card full-width">
+        <h2>Últimas Alertas de Seguridad</h2>
+        <table id="alertas-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Tipo</th>
+                    <th>Severidad</th>
+                    <th>IP Origen</th>
+                    <th>Mensaje</th>
+                </tr>
+            </thead>
+            <tbody id="alertas-tbody">
+                <!-- Las filas se insertarán aquí con JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
