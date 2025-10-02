@@ -99,3 +99,61 @@ El dashboard proporciona:
 - **Educación**: Herramienta didáctica para entender protocolos y seguridad de red.
 
 ## Estructura del Proyecto
+
+```mermaid
+graph TD
+    A[Monitor de Red] --> B[src/]
+    A --> C[data/]
+    A --> D[docs/]
+    A --> E[tests/]
+    A --> F[Archivos Principales]
+    
+    B --> BA[alertas/]
+    B --> BB[analizador/]
+    B --> BC[base_datos/]
+    B --> BD[capturador/]
+    B --> BE[configuracion/]
+    B --> BF[utils/]
+    B --> BG[web/]
+    
+    BA --> BA1[sistema_alertas.py]
+    
+    BB --> BB1[analizador_protocolos.py]
+    BB --> BB2[detector_amenazas.py]
+    BB --> BB3[estadisticas.py]
+    
+    BC --> BC1[gestor_bd.py]
+    BC --> BC2[modelos.py]
+    
+    BD --> BD1[captura_paquetes.py]
+    BD --> BD2[filtros.py]
+    
+    BE --> BE1[config.py]
+    BE --> BE2[reglas_deteccion.json]
+    
+    BF --> BF1[logger.py]
+    BF --> BF2[utilidades.py]
+    
+    BG --> BG1[servidor.py]
+    BG --> BG2[static/]
+    BG --> BG3[templates/]
+    
+    C --> CA[logs/]
+    C --> CB[reglas/]
+    C --> CC[monitor_red.db]
+    
+    D --> DA[configuracion.md]
+    D --> DB[instalacion.md]
+    D --> DC[manual_usuario.md]
+    
+    E --> EA[test_alertas.py]
+    E --> EB[test_analizador.py]
+    E --> EC[test_capturador.py]
+    
+    F --> FA[main.py]
+    F --> FB[config.json]
+    F --> FC[requirements.txt]
+    F --> FD[setup.py]
+    F --> FE[inicializar_proyecto.py]
+    F --> FF[instalar.bat]
+```
