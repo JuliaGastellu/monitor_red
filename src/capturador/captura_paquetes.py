@@ -2,7 +2,8 @@ import threading
 import os
 import platform
 import socket
-from scapy.all import sniff, Packet, conf
+import struct
+from scapy.all import sniff, Packet, conf, Raw
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
 from datetime import datetime
@@ -27,33 +28,65 @@ class PaqueteWrapper:
 
     def _parse(self):
         """Extrae la información relevante del paquete Scapy."""
-        if self.paquete_original.haslayer(IP):
-            ip_layer = self.paquete_original.getlayer(IP)
-            self.ip_origen = ip_layer.src
-            self.ip_destino = ip_layer.dst
+        try:
+            if self.paquete_original.haslayer(IP):
+                ip_layer = self.paquete_original.getlayer(IP)
+                self.ip_origen = ip_layer.src
+                self.ip_destino = ip_layer.dst
 
-        if self.paquete_original.haslayer(TCP):
-            tcp_layer = self.paquete_original.getlayer(TCP)
-            self.puerto_origen = tcp_layer.sport
-            self.puerto_destino = tcp_layer.dport
-            self.protocolo = 'TCP'
-            self.info_adicional['flags'] = str(tcp_layer.flags)
+            if self.paquete_original.haslayer(TCP):
+                tcp_layer = self.paquete_original.getlayer(TCP)
+                self.puerto_origen = tcp_layer.sport
+                self.puerto_destino = tcp_layer.dport
+                self.protocolo = 'TCP'
+                self.info_adicional['flags'] = str(tcp_layer.flags)
 
-        elif self.paquete_original.haslayer(UDP):
-            udp_layer = self.paquete_original.getlayer(UDP)
-            self.puerto_origen = udp_layer.sport
-            self.puerto_destino = udp_layer.dport
-            self.protocolo = 'UDP'
+            elif self.paquete_original.haslayer(UDP):
+                udp_layer = self.paquete_original.getlayer(UDP)
+                self.puerto_origen = udp_layer.sport
+                self.puerto_destino = udp_layer.dport
+                self.protocolo = 'UDP'
 
-        elif self.paquete_original.haslayer(DNS):
-            self.protocolo = 'DNS'
-            dns_layer = self.paquete_original.getlayer(DNS)
-            if dns_layer.qr == 0: # Query
-                if dns_layer.qd:
-                    self.info_adicional['dns_query'] = dns_layer.qd.qname.decode()
-            elif dns_layer.qr == 1: # Response
-                 if dns_layer.an:
-                    self.info_adicional['dns_response'] = [ans.rdata for ans in dns_layer.an]
+                # Verificar si es DNS y manejar con cuidado
+                if self.paquete_original.haslayer(DNS):
+                    self.protocolo = 'DNS'
+                    dns_layer = self.paquete_original.getlayer(DNS)
+                    
+                    # Manejar consultas DNS con cuidado
+                    if dns_layer.qr == 0:  # Query
+                        if dns_layer.qd and hasattr(dns_layer.qd, 'qname'):
+                            try:
+                                qname = dns_layer.qd.qname
+                                if isinstance(qname, bytes):
+                                    self.info_adicional['dns_query'] = qname.decode('utf-8', errors='replace')
+                                else:
+                                    self.info_adicional['dns_query'] = str(qname)
+                            except Exception:
+                                self.info_adicional['dns_query'] = "[Error decodificando nombre]"
+                    
+                    # Manejar respuestas DNS con cuidado
+                    elif dns_layer.qr == 1:  # Response
+                        if dns_layer.an:
+                            try:
+                                self.info_adicional['dns_response'] = []
+                                for ans in dns_layer.an:
+                                    if hasattr(ans, 'rdata'):
+                                        if isinstance(ans.rdata, bytes):
+                                            self.info_adicional['dns_response'].append(
+                                                ans.rdata.decode('utf-8', errors='replace'))
+                                        else:
+                                            self.info_adicional['dns_response'].append(str(ans.rdata))
+                            except Exception:
+                                self.info_adicional['dns_response'] = ["[Error decodificando respuesta]"]
+        except Exception as e:
+            # Si hay algún error en el parsing, al menos aseguramos que el objeto sea usable
+            if not self.ip_origen:
+                self.ip_origen = "0.0.0.0"
+            if not self.ip_destino:
+                self.ip_destino = "0.0.0.0"
+            if not self.protocolo:
+                self.protocolo = "Error"
+            self.info_adicional['error_parsing'] = str(e)
 
 
     def es_tcp(self):
@@ -92,7 +125,7 @@ class CapturadorPaquetes:
                 paquete_envuelto = PaqueteWrapper(paquete_scapy)
                 self.callback_procesamiento(paquete_envuelto)
             except Exception as e:
-                self.logger.error(f"Error al procesar paquete: {e}\nPaquete: {paquete_scapy.summary()}")
+                self.logger.error(f"Error al procesar paquete: {e}")
 
     def iniciar_captura(self):
         """
@@ -170,9 +203,22 @@ class CapturadorPaquetes:
                 try:
                     data = raw_socket.recv(65535)
                     if data:
-                        # Convertir datos raw a paquete IP de Scapy
-                        pkt = IP(data)
-                        self._procesar_paquete_scapy(pkt)
+                        try:
+                            # Convertir datos raw a paquete IP de Scapy
+                            pkt = IP(data)
+                            self._procesar_paquete_scapy(pkt)
+                        except Exception as e:
+                            # Si falla la conversión a IP, intentar procesar como Raw
+                            self.logger.debug(f"Error convirtiendo a IP: {e}, intentando como Raw")
+                            try:
+                                pkt = Raw(data)
+                                self._procesar_paquete_scapy(pkt)
+                            except:
+                                # Si todo falla, ignorar este paquete
+                                pass
+                except socket.timeout:
+                    # Timeout es normal, continuar
+                    continue
                 except Exception as e:
                     self.logger.error(f"Error capturando paquete: {e}")
                     if self.detener_captura_flag.is_set():
