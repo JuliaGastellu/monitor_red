@@ -1,7 +1,8 @@
 import threading
 import os
 import platform
-from scapy.all import sniff, Packet, conf, L3RawSocket
+from scapy.all import sniff, Packet, conf
+from scapy.config import conf
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
 from datetime import datetime
@@ -79,11 +80,12 @@ class CapturadorPaquetes:
         # Configuración específica para Windows
         if platform.system() == 'Windows':
             self.logger.info("Sistema Windows detectado. Configurando para captura a nivel 3.")
-            # Configurar explícitamente para usar L3RawSocket
-            conf.L3socket = L3RawSocket
-            # Desactivar uso de pcap y dnet
+            # Usar L3socket en lugar de L2socket
             conf.use_pcap = False
             conf.use_dnet = False
+            # Asegurarse de que se use L3socket
+            conf.L2listen = None
+            conf.L2socket = None
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
         """
@@ -111,16 +113,15 @@ class CapturadorPaquetes:
         El bucle principal que ejecuta `sniff` de Scapy.
         """
         try:
-            # En Windows, usar socket L3 sin especificar interfaz
+            # En Windows, usar captura a nivel 3 sin especificar interfaz
             if platform.system() == 'Windows':
-                self.logger.info("Usando captura a nivel 3 (L3RawSocket) en Windows")
-                # Usar socket_cls=L3RawSocket explícitamente
+                self.logger.info("Usando captura a nivel 3 en Windows")
+                # Usar L3socket implícitamente
                 sniff(
                     prn=self._procesar_paquete_scapy,
                     filter=self.filtro_bpf,
                     store=False,
-                    stop_filter=lambda p: self.detener_captura_flag.is_set(),
-                    socket_cls=L3RawSocket
+                    stop_filter=lambda p: self.detener_captura_flag.is_set()
                 )
             else:
                 # En otros sistemas operativos, usar la interfaz especificada
