@@ -76,23 +76,15 @@ class CapturadorPaquetes:
         self.hilo_captura = None
         self.detener_captura_flag = threading.Event()
         
-        # Configurar para usar L3socket en Windows automáticamente
+        # Forzar el uso de L3socket en Windows siempre
         if platform.system() == 'Windows':
-            try:
-                # Intentar importar funciones específicas de Windows para verificar WinPcap/Npcap
-                from scapy.arch.windows import get_windows_if_list
-                interfaces = get_windows_if_list()
-                if not interfaces:
-                    raise ImportError("No se detectaron interfaces de red")
-                self.logger.info("WinPcap/Npcap detectado correctamente")
-            except Exception as e:
-                self.logger.warning(f"WinPcap/Npcap no detectado o error: {e}. Usando L3socket para captura a nivel IP.")
-                # Configurar Scapy para usar L3socket
-                conf.use_pcap = False
-                conf.use_dnet = False
-                conf.L2socket = None
-                conf.L3socket = conf.L3socket
-                self.logger.info("Configurado para usar L3socket en Windows")
+            self.logger.info("Sistema Windows detectado. Forzando uso de L3socket.")
+            conf.use_pcap = False
+            conf.use_dnet = False
+            conf.L2socket = None
+            conf.L3socket = conf.L3socket
+        else:
+            self.usar_l3socket = False
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
         """
@@ -120,9 +112,9 @@ class CapturadorPaquetes:
         El bucle principal que ejecuta `sniff` de Scapy.
         """
         try:
-            # En Windows sin WinPcap, usamos socket L3 que no requiere interfaz específica
-            if platform.system() == 'Windows' and conf.L2socket is None:
-                self.logger.info("Usando L3socket para captura de paquetes")
+            # En Windows, siempre usar L3socket sin especificar interfaz
+            if platform.system() == 'Windows':
+                self.logger.info("Usando L3socket para captura de paquetes en Windows")
                 sniff(
                     prn=self._procesar_paquete_scapy,
                     filter=self.filtro_bpf,
@@ -130,6 +122,7 @@ class CapturadorPaquetes:
                     stop_filter=lambda p: self.detener_captura_flag.is_set()
                 )
             else:
+                # En otros sistemas operativos, usar la interfaz especificada
                 sniff(
                     iface=self.interfaz,
                     prn=self._procesar_paquete_scapy,
@@ -139,7 +132,7 @@ class CapturadorPaquetes:
                 )
             self.logger.info("Bucle de captura terminado.")
         except PermissionError:
-            self.logger.error("Error de permisos. Asegúrate de ejecutar el programa con privilegios de administrador (sudo).")
+            self.logger.error("Error de permisos. Asegúrate de ejecutar el programa con privilegios de administrador.")
         except OSError as e:
             self.logger.error(f"Error de red: {e}. Asegúrate de que la interfaz '{self.interfaz}' existe y está activa.")
         except Exception as e:
