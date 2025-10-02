@@ -80,7 +80,7 @@ class CapturadorPaquetes:
         # Configuración específica para Windows
         if platform.system() == 'Windows':
             self.logger.info("Sistema Windows detectado. Configurando para captura a nivel 3.")
-            # Simplemente desactivar pcap
+            # Desactivar pcap para forzar el uso de sockets nativos
             conf.use_pcap = False
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
@@ -112,26 +112,18 @@ class CapturadorPaquetes:
             # Implementación alternativa para Windows
             if platform.system() == 'Windows':
                 self.logger.info("Usando captura a nivel 3 en Windows")
-                # Crear un socket raw para capturar paquetes IP
-                raw_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-                raw_socket.bind(('0.0.0.0', 0))
-                raw_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
-                
-                # Bucle de captura manual
-                while not self.detener_captura_flag.is_set():
-                    try:
-                        data = raw_socket.recv(65535)
-                        if data:
-                            # Convertir datos raw a paquete IP de Scapy
-                            pkt = IP(data)
-                            self._procesar_paquete_scapy(pkt)
-                    except Exception as e:
-                        self.logger.error(f"Error capturando paquete: {e}")
-                
-                # Limpiar
-                raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
-                raw_socket.close()
+                try:
+                    # En Windows, usar sniff sin especificar interfaz
+                    sniff(
+                        prn=self._procesar_paquete_scapy,
+                        filter=self.filtro_bpf,
+                        store=False,
+                        stop_filter=lambda p: self.detener_captura_flag.is_set()
+                    )
+                except Exception as e:
+                    self.logger.error(f"Error con sniff: {e}, intentando con socket raw")
+                    # Fallback a socket raw si sniff falla
+                    self._captura_con_socket_raw()
             else:
                 # En otros sistemas operativos, usar la interfaz especificada
                 sniff(
@@ -148,6 +140,53 @@ class CapturadorPaquetes:
             self.logger.error(f"Error de red: {e}. Asegúrate de que la interfaz '{self.interfaz}' existe y está activa.")
         except Exception as e:
             self.logger.error(f"Error inesperado en la captura de paquetes: {e}")
+            
+    def _captura_con_socket_raw(self):
+        """
+        Método alternativo de captura usando socket raw en Windows.
+        """
+        try:
+            # Crear un socket raw para capturar paquetes IP
+            raw_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+            
+            # Encontrar una interfaz activa para enlazar el socket
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+            self.logger.info(f"Usando interfaz con IP: {local_ip}")
+            
+            # Enlazar a la interfaz local
+            raw_socket.bind((local_ip, 0))
+            
+            # Configurar el socket para incluir los encabezados IP
+            raw_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+            
+            # Activar modo promiscuo
+            raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
+            
+            self.logger.info("Socket raw configurado correctamente")
+            
+            # Bucle de captura manual
+            while not self.detener_captura_flag.is_set():
+                try:
+                    data = raw_socket.recv(65535)
+                    if data:
+                        # Convertir datos raw a paquete IP de Scapy
+                        pkt = IP(data)
+                        self._procesar_paquete_scapy(pkt)
+                except Exception as e:
+                    self.logger.error(f"Error capturando paquete: {e}")
+                    if self.detener_captura_flag.is_set():
+                        break
+            
+            # Limpiar
+            try:
+                raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+            except:
+                pass
+            raw_socket.close()
+            
+        except Exception as e:
+            self.logger.error(f"Error configurando socket raw: {e}")
 
     def detener_captura(self):
         """
