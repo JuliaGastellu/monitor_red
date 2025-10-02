@@ -1,5 +1,6 @@
 import threading
-from scapy.all import sniff, Packet
+import os
+from scapy.all import sniff, Packet, conf
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
 from datetime import datetime
@@ -73,6 +74,17 @@ class CapturadorPaquetes:
         self.logger = configurar_logger('CapturadorPaquetes')
         self.hilo_captura = None
         self.detener_captura_flag = threading.Event()
+        
+        # Verificar si estamos en Windows y configurar para usar L3socket si es necesario
+        if os.name == 'nt':
+            try:
+                from scapy.arch.windows import get_windows_if_list
+                get_windows_if_list()  # Intenta obtener la lista de interfaces para verificar si WinPcap está instalado
+            except ImportError:
+                self.logger.warning("WinPcap/Npcap no detectado. Usando L3socket para captura a nivel IP.")
+                conf.use_pcap = False
+                conf.L2socket = None
+                self.logger.info("Configurado para usar L3socket en Windows")
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
         """
@@ -100,13 +112,23 @@ class CapturadorPaquetes:
         El bucle principal que ejecuta `sniff` de Scapy.
         """
         try:
-            sniff(
-                iface=self.interfaz,
-                prn=self._procesar_paquete_scapy,
-                filter=self.filtro_bpf,
-                store=False,
-                stop_filter=lambda p: self.detener_captura_flag.is_set()
-            )
+            # En Windows sin WinPcap, usamos socket L3 que no requiere interfaz específica
+            if os.name == 'nt' and conf.L2socket is None:
+                self.logger.info("Usando L3socket para captura de paquetes")
+                sniff(
+                    prn=self._procesar_paquete_scapy,
+                    filter=self.filtro_bpf,
+                    store=False,
+                    stop_filter=lambda p: self.detener_captura_flag.is_set()
+                )
+            else:
+                sniff(
+                    iface=self.interfaz,
+                    prn=self._procesar_paquete_scapy,
+                    filter=self.filtro_bpf,
+                    store=False,
+                    stop_filter=lambda p: self.detener_captura_flag.is_set()
+                )
             self.logger.info("Bucle de captura terminado.")
         except PermissionError:
             self.logger.error("Error de permisos. Asegúrate de ejecutar el programa con privilegios de administrador (sudo).")

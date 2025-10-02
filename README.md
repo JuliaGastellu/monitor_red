@@ -1,41 +1,47 @@
-# Sistema de Monitoreo y Análisis de Tráfico de Red
+# Monitor de Red - Sistema de Detección de Amenazas
 
-Sistema integral de ciberseguridad desarrollado en Python para el monitoreo continuo del tráfico de red, detección automática de amenazas y generación de alertas en tiempo real. Diseñado para proporcionar visibilidad completa sobre la actividad de red y detectar patrones maliciosos de forma proactiva.
+Sistema avanzado de monitoreo y análisis de tráfico de red en tiempo real, diseñado para detectar amenazas de seguridad y proporcionar alertas inmediatas.
 
-## Descripción del Sistema
-
-Este sistema implementa un motor de análisis de tráfico de red que opera en tiempo real, capturando y analizando paquetes para identificar comportamientos sospechosos como escaneos de puertos, ataques de fuerza bruta, comunicaciones con IPs maliciosas conocidas y uso de protocolos no autorizados. La arquitectura modular permite una fácil extensión y personalización de las reglas de detección.
-
-## Tecnologías Utilizadas
-
-### Scapy - Captura y Análisis de Paquetes
-Biblioteca especializada en manipulación de paquetes de red que permite la captura en tiempo real y el análisis detallado de protocolos. Se eligió por su capacidad de trabajar a bajo nivel con diferentes tipos de paquetes y su flexibilidad para crear filtros personalizados.
-
-### SQLAlchemy - Gestión de Base de Datos
-ORM robusto que facilita la interacción con la base de datos SQLite, proporcionando un mapeo objeto-relacional eficiente. Su elección se debe a la portabilidad, facilidad de configuración y capacidad de manejar grandes volúmenes de datos de tráfico de red.
-
-### Flask - Interfaz Web
-Framework web ligero y flexible que permite crear una interfaz de usuario intuitiva para la visualización de datos en tiempo real. Se seleccionó por su simplicidad, rapidez de desarrollo y capacidad de integración con JavaScript para actualizaciones dinámicas.
-
-### SQLite - Almacenamiento de Datos
-Base de datos embebida que no requiere configuración adicional, ideal para sistemas de monitoreo que necesitan almacenar grandes cantidades de datos de tráfico y alertas de forma eficiente y sin dependencias externas.
+**Autora: Julia Gastellu - 2025**
 
 ## Características Principales
 
-- **Captura de tráfico en tiempo real** utilizando Scapy con soporte para múltiples interfaces de red
-- **Motor de detección de amenazas** con algoritmos para identificar escaneos de puertos, ataques de fuerza bruta y comportamientos anómalos
-- **Sistema de alertas multicanalal** con notificaciones por email y registro en logs
-- **Dashboard web interactivo** con visualización de estadísticas y alertas en tiempo real
-- **Base de datos integrada** para almacenamiento histórico de paquetes, alertas y estadísticas
-- **Análisis de protocolos** con soporte para HTTP, DNS, TCP y UDP
-- **Configuración flexible** mediante archivos JSON para reglas de detección personalizadas
-- **Arquitectura modular** que permite extensiones y personalizaciones
+- Captura y análisis de tráfico de red en tiempo real
+- Detección de patrones de tráfico sospechosos y amenazas potenciales
+- Dashboard web interactivo con estadísticas y visualizaciones
+- Sistema de alertas configurable (email y logs)
+- Almacenamiento de datos en base de datos SQLite
+- Interfaz en español con documentación completa
 
-## Requisitos del Sistema
+## Tecnologías Utilizadas
 
-- Python 3.7 o superior
-- Permisos de administrador para captura de paquetes de red
-- Compatible con Windows, Linux y macOS
+El sistema ha sido desarrollado utilizando tecnologías modernas y eficientes:
+
+- **Scapy**: Biblioteca potente para manipulación de paquetes de red. Elegida por su flexibilidad para capturar y analizar tráfico de red a bajo nivel, permitiendo una inspección detallada de los paquetes.
+
+- **SQLAlchemy**: ORM (Object-Relational Mapping) que facilita la interacción con la base de datos. Seleccionada por su robustez y capacidad para abstraer la complejidad de las operaciones de base de datos, permitiendo un código más mantenible.
+
+- **Flask**: Framework web ligero y versátil para la creación del dashboard. Escogido por su simplicidad y eficiencia para crear aplicaciones web sin agregar complejidad innecesaria.
+
+- **SQLite**: Sistema de gestión de bases de datos relacional. Elegido por su naturaleza embebida que no requiere un servidor separado, facilitando la instalación y portabilidad del sistema.
+
+## Arquitectura del Sistema
+
+El monitor de red está estructurado en módulos independientes que trabajan en conjunto:
+
+1. **Capturador**: Intercepta paquetes de red utilizando Scapy
+2. **Analizador**: Procesa los paquetes para detectar patrones sospechosos
+3. **Sistema de Alertas**: Notifica sobre amenazas detectadas
+4. **Base de Datos**: Almacena paquetes, alertas y estadísticas
+5. **Servidor Web**: Proporciona una interfaz visual para monitoreo
+
+Esta arquitectura modular facilita el mantenimiento y la extensión del sistema, permitiendo agregar nuevas funcionalidades sin afectar los componentes existentes.
+
+## Requisitos
+
+- Python 3.8 o superior
+- Privilegios de administrador para captura de paquetes
+- En Windows: [Npcap](https://npcap.com/#download) instalado (requerido por Scapy)
 - Mínimo 512 MB de RAM disponible
 - Espacio en disco para almacenamiento de logs y base de datos
 
@@ -51,6 +57,11 @@ instalar.bat
 pip install -r requirements.txt
 python inicializar_proyecto.py
 ```
+
+### Requisitos adicionales para Windows
+Para que la captura de paquetes funcione correctamente en Windows, es necesario instalar Npcap:
+1. Descargar Npcap desde [https://npcap.com/#download](https://npcap.com/#download)
+2. Instalar con las opciones predeterminadas
 
 ### Configuración Inicial
 Editar el archivo `config.json` para personalizar:
@@ -80,4 +91,11 @@ El dashboard proporciona:
 - Lista de alertas de seguridad recientes
 - Métricas de rendimiento del sistema
 
-## Arquitectura del Sistema
+## Casos de Uso
+
+- **Monitoreo de seguridad**: Detección de escaneos de puertos, intentos de fuerza bruta y tráfico anómalo.
+- **Análisis de red**: Visualización de patrones de tráfico y estadísticas de uso.
+- **Auditoría**: Registro detallado de comunicaciones para cumplimiento normativo.
+- **Educación**: Herramienta didáctica para entender protocolos y seguridad de red.
+
+## Estructura del Proyecto
