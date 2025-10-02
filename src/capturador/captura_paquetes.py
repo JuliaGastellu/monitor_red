@@ -1,8 +1,8 @@
 import threading
 import os
 import platform
+import socket
 from scapy.all import sniff, Packet, conf
-from scapy.config import conf
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
 from datetime import datetime
@@ -80,12 +80,8 @@ class CapturadorPaquetes:
         # Configuración específica para Windows
         if platform.system() == 'Windows':
             self.logger.info("Sistema Windows detectado. Configurando para captura a nivel 3.")
-            # Usar L3socket en lugar de L2socket
+            # Simplemente desactivar pcap
             conf.use_pcap = False
-            conf.use_dnet = False
-            # Asegurarse de que se use L3socket
-            conf.L2listen = None
-            conf.L2socket = None
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
         """
@@ -113,16 +109,29 @@ class CapturadorPaquetes:
         El bucle principal que ejecuta `sniff` de Scapy.
         """
         try:
-            # En Windows, usar captura a nivel 3 sin especificar interfaz
+            # Implementación alternativa para Windows
             if platform.system() == 'Windows':
                 self.logger.info("Usando captura a nivel 3 en Windows")
-                # Usar L3socket implícitamente
-                sniff(
-                    prn=self._procesar_paquete_scapy,
-                    filter=self.filtro_bpf,
-                    store=False,
-                    stop_filter=lambda p: self.detener_captura_flag.is_set()
-                )
+                # Crear un socket raw para capturar paquetes IP
+                raw_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+                raw_socket.bind(('0.0.0.0', 0))
+                raw_socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+                raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
+                
+                # Bucle de captura manual
+                while not self.detener_captura_flag.is_set():
+                    try:
+                        data = raw_socket.recv(65535)
+                        if data:
+                            # Convertir datos raw a paquete IP de Scapy
+                            pkt = IP(data)
+                            self._procesar_paquete_scapy(pkt)
+                    except Exception as e:
+                        self.logger.error(f"Error capturando paquete: {e}")
+                
+                # Limpiar
+                raw_socket.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+                raw_socket.close()
             else:
                 # En otros sistemas operativos, usar la interfaz especificada
                 sniff(
