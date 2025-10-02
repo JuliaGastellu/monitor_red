@@ -37,31 +37,39 @@ class DetectorAmenazas:
         Punto de entrada principal para el análisis de cada paquete.
         """
         try:
+            # Verificar que el paquete tenga información básica
+            if not paquete_wrapper.ip_origen or not paquete_wrapper.ip_destino:
+                return  # Ignorar paquetes sin información IP
+
             # 1. Registrar para estadísticas generales
             if self.calculador_estadisticas:
                 self.calculador_estadisticas.registrar_paquete(paquete_wrapper)
 
             # 2. Analizar protocolos de aplicación (HTTP, DNS, etc.)
-            info_app = analizar_protocolo_aplicacion(paquete_wrapper)
-            if info_app:
-                paquete_wrapper.info_adicional.update(info_app)
+            try:
+                info_app = analizar_protocolo_aplicacion(paquete_wrapper)
+                if info_app:
+                    paquete_wrapper.info_adicional.update(info_app)
+            except Exception as e:
+                # Si falla el análisis de protocolo, continuamos con el resto
+                pass
 
             # 3. Registrar conexión para análisis de comportamiento
             self._registrar_conexion(paquete_wrapper)
             
             # 4. Ejecutar todas las detecciones
             self._detectar_escaneo_puertos(paquete_wrapper)
-            self._detectar_fuerza_bruta(paquete_wrapper) # Simplificado
+            self._detectar_fuerza_bruta(paquete_wrapper)
             self._detectar_trafico_anomalo_volumen(paquete_wrapper)
             self._detectar_comunicacion_ip_maliciosa(paquete_wrapper)
             self._detectar_protocolos_no_autorizados(paquete_wrapper)
             self._evaluar_reglas_personalizadas(paquete_wrapper)
             
             # 5. Guardar paquete en base de datos (si es relevante)
-            self._guardar_paquete_bd(paquete_wrapper)  # Guardamos todos los paquetes en la BD
+            self._guardar_paquete_bd(paquete_wrapper)
 
         except Exception as e:
-            self.logger.error(f"Error procesando paquete: {e}")
+            self.logger.error(f"Error procesando paquete: {str(e)}")
 
     def _registrar_conexion(self, paquete):
         if not paquete.ip_origen: return
@@ -76,28 +84,38 @@ class DetectorAmenazas:
         if (ahora - self.cache_alertas[cache_key]) > self.intervalo_cache_alerta:
             self.cache_alertas[cache_key] = ahora
             
+            # Asegurar que todos los valores son serializables
+            datos_seguros = {
+                'ip_origen': str(paquete.ip_origen),
+                'ip_destino': str(paquete.ip_destino),
+                'puerto_origen': paquete.puerto_origen,
+                'puerto_destino': paquete.puerto_destino,
+                'protocolo': str(paquete.protocolo)
+            }
+            
+            # Añadir detalles adicionales, asegurando que sean serializables
+            if detalles_adicionales:
+                for k, v in detalles_adicionales.items():
+                    datos_seguros[k] = str(v) if not isinstance(v, (int, float, bool, type(None))) else v
+            
             alerta = {
                 'timestamp': paquete.timestamp,
                 'tipo': tipo,
                 'mensaje': mensaje,
                 'severidad': severidad,
-                'datos': {
-                    'ip_origen': paquete.ip_origen,
-                    'ip_destino': paquete.ip_destino,
-                    'puerto_origen': paquete.puerto_origen,
-                    'puerto_destino': paquete.puerto_destino,
-                    'protocolo': paquete.protocolo,
-                    **(detalles_adicionales or {})
-                }
+                'datos': datos_seguros
             }
 
-            if self.sistema_alertas:
-                self.sistema_alertas.procesar_alerta(alerta)
+            try:
+                if self.sistema_alertas:
+                    self.sistema_alertas.procesar_alerta(alerta)
 
-            if self.gestor_bd:
-                self.gestor_bd.guardar_alerta(alerta)
+                if self.gestor_bd:
+                    self.gestor_bd.guardar_alerta(alerta)
 
-            self.logger.warning(f"ALERTA GENERADA: {mensaje}")
+                self.logger.warning(f"ALERTA GENERADA: {mensaje}")
+            except Exception as e:
+                self.logger.error(f"Error al procesar alerta: {e}")
 
     def _detectar_escaneo_puertos(self, paquete):
         if not paquete.ip_origen or not paquete.puerto_destino: return
@@ -202,16 +220,36 @@ class DetectorAmenazas:
         return True
 
     def _guardar_paquete_bd(self, paquete):
-        """Guarda información del paquete en la base de datos."""
-        if self.gestor_bd:
-            datos_paquete = {
-                'timestamp': paquete.timestamp,
-                'ip_origen': paquete.ip_origen,
-                'ip_destino': paquete.ip_destino,
-                'puerto_origen': paquete.puerto_origen,
-                'puerto_destino': paquete.puerto_destino,
-                'protocolo': paquete.obtener_protocolo_nombre(),
-                'tamaño': paquete.tamaño,
-                'info_adicional': json.dumps(paquete.info_adicional) if paquete.info_adicional else None
-            }
-            self.gestor_bd.guardar_paquete(datos_paquete)
+        """Guarda el paquete en la base de datos."""
+        try:
+            if self.gestor_bd:
+                # Crear un diccionario con los datos del paquete
+                datos_paquete = {
+                    'timestamp': paquete.timestamp,
+                    'ip_origen': str(paquete.ip_origen),
+                    'ip_destino': str(paquete.ip_destino),
+                    'puerto_origen': paquete.puerto_origen,
+                    'puerto_destino': paquete.puerto_destino,
+                    'protocolo': str(paquete.protocolo),
+                    'tamaño': paquete.tamaño
+                }
+                
+                # Convertir info_adicional a JSON seguro
+                info_adicional_seguro = {}
+                for k, v in paquete.info_adicional.items():
+                    # Convertir valores no serializables a string
+                    if isinstance(v, (dict, list)):
+                        try:
+                            json.dumps(v)  # Verificar si es serializable
+                            info_adicional_seguro[k] = v
+                        except:
+                            info_adicional_seguro[k] = str(v)
+                    else:
+                        info_adicional_seguro[k] = str(v) if not isinstance(v, (int, float, bool, type(None))) else v
+                
+                datos_paquete['info_adicional'] = json.dumps(info_adicional_seguro)
+                
+                # Guardar en la BD
+                self.gestor_bd.guardar_paquete(datos_paquete)
+        except Exception as e:
+            self.logger.error(f"Error al guardar paquete en BD: {e}")

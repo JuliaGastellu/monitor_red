@@ -2,7 +2,6 @@ import threading
 import os
 import platform
 import socket
-import struct
 from scapy.all import sniff, Packet, conf, Raw
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
@@ -21,7 +20,7 @@ class PaqueteWrapper:
         self.puerto_origen = None
         self.puerto_destino = None
         self.protocolo = 'Desconocido'
-        self.tamaño = len(paquete_scapy)
+        self.tamaño = len(paquete_scapy) if paquete_scapy else 0
         self.info_adicional = {}
 
         self._parse()
@@ -50,34 +49,8 @@ class PaqueteWrapper:
                 # Verificar si es DNS y manejar con cuidado
                 if self.paquete_original.haslayer(DNS):
                     self.protocolo = 'DNS'
-                    dns_layer = self.paquete_original.getlayer(DNS)
-                    
-                    # Manejar consultas DNS con cuidado
-                    if dns_layer.qr == 0:  # Query
-                        if dns_layer.qd and hasattr(dns_layer.qd, 'qname'):
-                            try:
-                                qname = dns_layer.qd.qname
-                                if isinstance(qname, bytes):
-                                    self.info_adicional['dns_query'] = qname.decode('utf-8', errors='replace')
-                                else:
-                                    self.info_adicional['dns_query'] = str(qname)
-                            except Exception:
-                                self.info_adicional['dns_query'] = "[Error decodificando nombre]"
-                    
-                    # Manejar respuestas DNS con cuidado
-                    elif dns_layer.qr == 1:  # Response
-                        if dns_layer.an:
-                            try:
-                                self.info_adicional['dns_response'] = []
-                                for ans in dns_layer.an:
-                                    if hasattr(ans, 'rdata'):
-                                        if isinstance(ans.rdata, bytes):
-                                            self.info_adicional['dns_response'].append(
-                                                ans.rdata.decode('utf-8', errors='replace'))
-                                        else:
-                                            self.info_adicional['dns_response'].append(str(ans.rdata))
-                            except Exception:
-                                self.info_adicional['dns_response'] = ["[Error decodificando respuesta]"]
+                    # No intentamos extraer datos DNS para evitar errores de decodificación
+                    self.info_adicional['es_dns'] = True
         except Exception as e:
             # Si hay algún error en el parsing, al menos aseguramos que el objeto sea usable
             if not self.ip_origen:
@@ -211,18 +184,14 @@ class CapturadorPaquetes:
                             # Si falla la conversión a IP, intentar procesar como Raw
                             self.logger.debug(f"Error convirtiendo a IP: {e}, intentando como Raw")
                             try:
-                                pkt = Raw(data)
-                                self._procesar_paquete_scapy(pkt)
-                            except:
-                                # Si todo falla, ignorar este paquete
-                                pass
+                                # Si falla la conversión, simplemente continuamos
+                            pass
                 except socket.timeout:
                     # Timeout es normal, continuar
                     continue
                 except Exception as e:
-                    self.logger.error(f"Error capturando paquete: {e}")
-                    if self.detener_captura_flag.is_set():
-                        break
+                    if not self.detener_captura_flag.is_set():
+                        self.logger.error(f"Error capturando paquete: {e}")
             
             # Limpiar
             try:
