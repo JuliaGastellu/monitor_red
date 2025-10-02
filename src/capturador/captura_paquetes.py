@@ -1,7 +1,7 @@
 import threading
 import os
 import platform
-from scapy.all import sniff, Packet, conf
+from scapy.all import sniff, Packet, conf, L3RawSocket
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
 from datetime import datetime
@@ -76,15 +76,14 @@ class CapturadorPaquetes:
         self.hilo_captura = None
         self.detener_captura_flag = threading.Event()
         
-        # Forzar el uso de L3socket en Windows siempre
+        # Configuración específica para Windows
         if platform.system() == 'Windows':
-            self.logger.info("Sistema Windows detectado. Forzando uso de L3socket.")
+            self.logger.info("Sistema Windows detectado. Configurando para captura a nivel 3.")
+            # Configurar explícitamente para usar L3RawSocket
+            conf.L3socket = L3RawSocket
+            # Desactivar uso de pcap y dnet
             conf.use_pcap = False
             conf.use_dnet = False
-            conf.L2socket = None
-            conf.L3socket = conf.L3socket
-        else:
-            self.usar_l3socket = False
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
         """
@@ -112,14 +111,16 @@ class CapturadorPaquetes:
         El bucle principal que ejecuta `sniff` de Scapy.
         """
         try:
-            # En Windows, siempre usar L3socket sin especificar interfaz
+            # En Windows, usar socket L3 sin especificar interfaz
             if platform.system() == 'Windows':
-                self.logger.info("Usando L3socket para captura de paquetes en Windows")
+                self.logger.info("Usando captura a nivel 3 (L3RawSocket) en Windows")
+                # Usar socket_cls=L3RawSocket explícitamente
                 sniff(
                     prn=self._procesar_paquete_scapy,
                     filter=self.filtro_bpf,
                     store=False,
-                    stop_filter=lambda p: self.detener_captura_flag.is_set()
+                    stop_filter=lambda p: self.detener_captura_flag.is_set(),
+                    socket_cls=L3RawSocket
                 )
             else:
                 # En otros sistemas operativos, usar la interfaz especificada
