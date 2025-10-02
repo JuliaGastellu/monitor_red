@@ -1,5 +1,6 @@
 import threading
 import os
+import platform
 from scapy.all import sniff, Packet, conf
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.layers.dns import DNS
@@ -75,15 +76,22 @@ class CapturadorPaquetes:
         self.hilo_captura = None
         self.detener_captura_flag = threading.Event()
         
-        # Verificar si estamos en Windows y configurar para usar L3socket si es necesario
-        if os.name == 'nt':
+        # Configurar para usar L3socket en Windows automáticamente
+        if platform.system() == 'Windows':
             try:
+                # Intentar importar funciones específicas de Windows para verificar WinPcap/Npcap
                 from scapy.arch.windows import get_windows_if_list
-                get_windows_if_list()  # Intenta obtener la lista de interfaces para verificar si WinPcap está instalado
-            except ImportError:
-                self.logger.warning("WinPcap/Npcap no detectado. Usando L3socket para captura a nivel IP.")
+                interfaces = get_windows_if_list()
+                if not interfaces:
+                    raise ImportError("No se detectaron interfaces de red")
+                self.logger.info("WinPcap/Npcap detectado correctamente")
+            except Exception as e:
+                self.logger.warning(f"WinPcap/Npcap no detectado o error: {e}. Usando L3socket para captura a nivel IP.")
+                # Configurar Scapy para usar L3socket
                 conf.use_pcap = False
+                conf.use_dnet = False
                 conf.L2socket = None
+                conf.L3socket = conf.L3socket
                 self.logger.info("Configurado para usar L3socket en Windows")
 
     def _procesar_paquete_scapy(self, paquete_scapy: Packet):
@@ -113,7 +121,7 @@ class CapturadorPaquetes:
         """
         try:
             # En Windows sin WinPcap, usamos socket L3 que no requiere interfaz específica
-            if os.name == 'nt' and conf.L2socket is None:
+            if platform.system() == 'Windows' and conf.L2socket is None:
                 self.logger.info("Usando L3socket para captura de paquetes")
                 sniff(
                     prn=self._procesar_paquete_scapy,

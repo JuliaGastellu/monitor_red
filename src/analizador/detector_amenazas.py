@@ -58,7 +58,7 @@ class DetectorAmenazas:
             self._evaluar_reglas_personalizadas(paquete_wrapper)
             
             # 5. Guardar paquete en base de datos (si es relevante)
-            # self._guardar_paquete_bd(paquete_wrapper) # Descomentar si se requiere log de todos los paquetes
+            self._guardar_paquete_bd(paquete_wrapper)  # Guardamos todos los paquetes en la BD
 
         except Exception as e:
             self.logger.error(f"Error procesando paquete: {e}")
