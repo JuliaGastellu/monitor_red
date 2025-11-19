@@ -46,11 +46,9 @@ class GestorBaseDatos:
         nuevo_paquete = Paquete(**datos_paquete)
         with self.get_session() as session:
             session.add(nuevo_paquete)
-        # self.logger.debug(f"Paquete guardado: {datos_paquete['ip_origen']} -> {datos_paquete['ip_destino']}")
 
     def guardar_alerta(self, datos_alerta):
         """Guarda una nueva alerta en la base de datos."""
-        # Convertir detalles a JSON si es un diccionario
         if isinstance(datos_alerta.get('datos'), dict):
             detalles_json = json.dumps(datos_alerta['datos'])
         else:
@@ -85,9 +83,19 @@ class GestorBaseDatos:
             return session.query(Alerta).order_by(Alerta.timestamp.desc()).limit(limite).all()
 
     def obtener_estadisticas_recientes(self, limite=1):
-        """Obtiene el último registro de estadísticas."""
+        """Obtiene el último registro de estadísticas como diccionario."""
         with self.get_session() as session:
-            return session.query(Estadistica).order_by(Estadistica.timestamp.desc()).limit(limite).first()
+            estadistica = session.query(Estadistica).order_by(Estadistica.timestamp.desc()).limit(limite).first()
+            if estadistica:
+                return {
+                    'id': estadistica.id,
+                    'timestamp': estadistica.timestamp,
+                    'paquetes_totales': estadistica.paquetes_totales,
+                    'bytes_totales': estadistica.bytes_totales,
+                    'paquetes_por_segundo': estadistica.paquetes_por_segundo,
+                    'distribucion_protocolos': estadistica.distribucion_protocolos
+                }
+            return None
 
     def obtener_trafico_total(self):
         """Obtiene el número total de paquetes y bytes."""
@@ -98,8 +106,6 @@ class GestorBaseDatos:
 
     def cerrar_conexion(self):
         """Cierra la conexión con la base de datos."""
-        # SQLAlchemy maneja el pool de conexiones, por lo que no es estrictamente
-        # necesario cerrar el engine, pero es una buena práctica si la app termina.
         if self.engine:
             self.engine.dispose()
             self.logger.info("Conexión con la base de datos cerrada.")

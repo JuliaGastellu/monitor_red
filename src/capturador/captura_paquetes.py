@@ -177,15 +177,10 @@ class CapturadorPaquetes:
                     data = raw_socket.recv(65535)
                     if data:
                         try:
-                            # Convertir datos raw a paquete IP de Scapy
                             pkt = IP(data)
                             self._procesar_paquete_scapy(pkt)
                         except Exception as e:
-                            # Si falla la conversión a IP, intentar procesar como Raw
-                            self.logger.debug(f"Error convirtiendo a IP: {e}, intentando como Raw")
-                            try:
-                                # Si falla la conversión, simplemente continuamos
-                            pass
+                            self.logger.debug(f"Error convirtiendo a IP: {e}")
                 except socket.timeout:
                     # Timeout es normal, continuar
                     continue

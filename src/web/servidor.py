@@ -9,8 +9,11 @@ class ServidorWeb:
     Servidor web Flask para la visualización de datos.
     """
     def __init__(self, gestor_bd, config):
-        # Corregir la ruta a las plantillas y archivos estáticos
-        self.app = Flask(__name__, template_folder='templates', static_folder='static')
+        import os
+        ruta_actual = os.path.dirname(os.path.abspath(__file__))
+        self.app = Flask(__name__, 
+                        template_folder=os.path.join(ruta_actual, 'templates'),
+                        static_folder=os.path.join(ruta_actual, 'static'))
         self.gestor_bd = gestor_bd
         self.config = config
         self.logger = configurar_logger('ServidorWeb')
@@ -60,13 +63,14 @@ class ServidorWeb:
 
             datos_estadisticas = {}
             if estadisticas:
-                dist_protocolos = json.loads(estadisticas.distribucion_protocolos) if isinstance(estadisticas.distribucion_protocolos, str) else estadisticas.distribucion_protocolos
+                dist_protocolos = json.loads(estadisticas['distribucion_protocolos']) if isinstance(estadisticas['distribucion_protocolos'], str) else estadisticas['distribucion_protocolos']
                 datos_estadisticas = {
-                    'paquetes_totales': estadisticas.paquetes_totales,
-                    'bytes_totales_legible': convertir_bytes_a_legible(estadisticas.bytes_totales),
-                    'paquetes_por_segundo': estadisticas.paquetes_por_segundo,
+                    'paquetes_totales': estadisticas['paquetes_totales'],
+                    'bytes_totales_legible': convertir_bytes_a_legible(estadisticas['bytes_totales']),
+                    'paquetes_por_segundo': estadisticas['paquetes_por_segundo'],
                     'distribucion_protocolos': dist_protocolos
                 }
+
 
             return jsonify({
                 'alertas': datos_alertas,

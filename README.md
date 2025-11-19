@@ -2,8 +2,6 @@
 
 Sistema avanzado de monitoreo y análisis de tráfico de red en tiempo real, diseñado para detectar amenazas de seguridad y proporcionar alertas inmediatas.
 
-**Autora: Julia Gastellu - 2025**
-
 ## Características Principales
 
 - Captura y análisis de tráfico de red en tiempo real
@@ -29,13 +27,24 @@ El sistema ha sido desarrollado utilizando tecnologías modernas y eficientes:
 
 El monitor de red está estructurado en módulos independientes que trabajan en conjunto:
 
-1. **Capturador**: Intercepta paquetes de red utilizando Scapy
-2. **Analizador**: Procesa los paquetes para detectar patrones sospechosos
-3. **Sistema de Alertas**: Notifica sobre amenazas detectadas
-4. **Base de Datos**: Almacena paquetes, alertas y estadísticas
-5. **Servidor Web**: Proporciona una interfaz visual para monitoreo
+1. **Capturador**: Intercepta paquetes de red utilizando Scapy con soporte para Windows (socket raw) y Linux/macOS (sniff directo)
+2. **Analizador**: Procesa los paquetes para detectar patrones sospechosos mediante múltiples detectores especializados
+3. **Sistema de Alertas**: Notifica sobre amenazas detectadas por log y opcionalmente por email
+4. **Base de Datos**: Almacena paquetes, alertas y estadísticas usando SQLite con SQLAlchemy ORM
+5. **Servidor Web**: Proporciona una interfaz visual para monitoreo con actualización automática cada 5 segundos
 
 Esta arquitectura modular facilita el mantenimiento y la extensión del sistema, permitiendo agregar nuevas funcionalidades sin afectar los componentes existentes.
+
+## Capacidades de Detección
+
+El sistema implementa múltiples detectores de amenazas:
+
+- **Escaneo de Puertos**: Detecta cuando una IP contacta múltiples puertos en poco tiempo
+- **Ataques de Fuerza Bruta**: Identifica múltiples intentos de conexión a puertos críticos (SSH, RDP, FTP, MySQL, Telnet)
+- **Tráfico Anómalo por Volumen**: Alerta sobre volúmenes inusuales de datos desde una IP
+- **IPs Maliciosas Conocidas**: Compara tráfico contra una lista de IPs maliciosas configurables
+- **Protocolos No Autorizados**: Detecta uso de protocolos prohibidos según configuración
+- **Reglas Personalizadas**: Sistema flexible para definir reglas de detección propias
 
 ## Requisitos
 
@@ -65,11 +74,16 @@ Para que la captura de paquetes funcione correctamente en Windows, es necesario 
 
 ### Configuración Inicial
 Editar el archivo `config.json` para personalizar:
-- Interfaz de red a monitorear
-- Configuración de alertas por email
-- Reglas de detección personalizadas
-- Puerto del servidor web
-- Parámetros de la base de datos
+- Interfaz de red a monitorear (null para autodetección)
+- Configuración de alertas por email (deshabilitado por defecto)
+- Puerto del servidor web (8080 por defecto)
+- Ruta de la base de datos
+
+Editar `src/configuracion/reglas_deteccion.json` para ajustar:
+- Umbrales de detección (puertos por minuto, intentos de conexión, etc.)
+- Lista de IPs maliciosas conocidas
+- Protocolos no autorizados
+- Reglas personalizadas de detección
 
 ## Uso del Sistema
 
@@ -86,10 +100,14 @@ sudo python3 main.py
 Abrir navegador web en: `http://localhost:8080`
 
 El dashboard proporciona:
-- Estadísticas de tráfico en tiempo real
-- Gráficos de distribución de protocolos
-- Lista de alertas de seguridad recientes
-- Métricas de rendimiento del sistema
+- Estadísticas de tráfico en tiempo real (paquetes, volumen, tasa)
+- Gráfico circular de distribución de protocolos
+- Tabla de alertas de seguridad recientes con severidad codificada por color
+- Actualización automática cada 5 segundos
+
+### Navegación
+- **Dashboard**: Vista principal con estadísticas y alertas recientes
+- **Alertas**: Historial completo de todas las alertas generadas con detalles
 
 ## Casos de Uso
 
@@ -100,60 +118,84 @@ El dashboard proporciona:
 
 ## Estructura del Proyecto
 
-```mermaid
-graph TD
-    A[Monitor de Red] --> B[src/]
-    A --> C[data/]
-    A --> D[docs/]
-    A --> E[tests/]
-    A --> F[Archivos Principales]
-    
-    B --> BA[alertas/]
-    B --> BB[analizador/]
-    B --> BC[base_datos/]
-    B --> BD[capturador/]
-    B --> BE[configuracion/]
-    B --> BF[utils/]
-    B --> BG[web/]
-    
-    BA --> BA1[sistema_alertas.py]
-    
-    BB --> BB1[analizador_protocolos.py]
-    BB --> BB2[detector_amenazas.py]
-    BB --> BB3[estadisticas.py]
-    
-    BC --> BC1[gestor_bd.py]
-    BC --> BC2[modelos.py]
-    
-    BD --> BD1[captura_paquetes.py]
-    BD --> BD2[filtros.py]
-    
-    BE --> BE1[config.py]
-    BE --> BE2[reglas_deteccion.json]
-    
-    BF --> BF1[logger.py]
-    BF --> BF2[utilidades.py]
-    
-    BG --> BG1[servidor.py]
-    BG --> BG2[static/]
-    BG --> BG3[templates/]
-    
-    C --> CA[logs/]
-    C --> CB[reglas/]
-    C --> CC[monitor_red.db]
-    
-    D --> DA[configuracion.md]
-    D --> DB[instalacion.md]
-    D --> DC[manual_usuario.md]
-    
-    E --> EA[test_alertas.py]
-    E --> EB[test_analizador.py]
-    E --> EC[test_capturador.py]
-    
-    F --> FA[main.py]
-    F --> FB[config.json]
-    F --> FC[requirements.txt]
-    F --> FD[setup.py]
-    F --> FE[inicializar_proyecto.py]
-    F --> FF[instalar.bat]
 ```
+monitor_red/
+├── src/
+│   ├── __init__.py
+│   ├── alertas/
+│   │   ├── __init__.py
+│   │   └── sistema_alertas.py          # Gestión de alertas (log y email)
+│   ├── analizador/
+│   │   ├── __init__.py
+│   │   ├── analizador_protocolos.py    # Análisis de HTTP y DNS
+│   │   ├── detector_amenazas.py        # Motor de detección de amenazas
+│   │   └── estadisticas.py             # Cálculo de estadísticas en tiempo real
+│   ├── base_datos/
+│   │   ├── __init__.py
+│   │   ├── gestor_bd.py                # Gestión de operaciones de BD
+│   │   └── modelos.py                  # Modelos SQLAlchemy (Paquete, Alerta, Estadistica)
+│   ├── capturador/
+│   │   ├── __init__.py
+│   │   ├── captura_paquetes.py         # Captura con Scapy (Windows/Linux)
+│   │   └── filtros.py                  # Construcción de filtros BPF
+│   ├── configuracion/
+│   │   ├── __init__.py
+│   │   ├── config.py                   # Carga de configuración del sistema
+│   │   └── reglas_deteccion.json       # Reglas y umbrales de detección
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── logger.py                   # Configuración de logging
+│   │   └── utilidades.py               # Funciones auxiliares
+│   └── web/
+│       ├── __init__.py
+│       ├── servidor.py                 # Servidor Flask
+│       ├── static/
+│       │   ├── css/
+│       │   │   └── estilos.css         # Estilos del dashboard
+│       │   └── js/
+│       │       └── dashboard.js        # Lógica del dashboard
+│       └── templates/
+│           ├── base.html               # Plantilla base
+│           ├── dashboard.html          # Vista principal
+│           └── alertas.html            # Vista de alertas
+├── data/
+│   ├── logs/                           # Logs del sistema
+│   ├── reglas/                         # Reglas adicionales
+│   └── monitor_red.db                  # Base de datos SQLite (generada)
+├── docs/
+│   ├── configuracion.md                # Guía de configuración
+│   ├── instalacion.md                  # Guía de instalación
+│   └── manual_usuario.md               # Manual de usuario
+├── tests/
+│   ├── test_alertas.py                 # Tests del sistema de alertas
+│   ├── test_analizador.py              # Tests del analizador
+│   └── test_capturador.py              # Tests del capturador
+├── main.py                             # Punto de entrada principal
+├── config.json                         # Configuración general
+├── requirements.txt                    # Dependencias Python
+├── setup.py                            # Script de instalación
+├── inicializar_proyecto.py             # Inicialización de directorios
+└── instalar.bat                        # Instalador automático (Windows)
+```
+
+## Funcionamiento Interno
+
+### Flujo de Datos
+
+1. **Captura**: `CapturadorPaquetes` intercepta paquetes de red usando Scapy
+2. **Normalización**: Los paquetes se envuelven en `PaqueteWrapper` para extraer información relevante
+3. **Análisis**: `DetectorAmenazas` ejecuta múltiples detectores sobre cada paquete
+4. **Estadísticas**: `CalculadorEstadisticas` registra métricas y las guarda periódicamente
+5. **Alertas**: Cuando se detecta una amenaza, `SistemaAlertas` notifica según configuración
+6. **Almacenamiento**: `GestorBaseDatos` guarda paquetes, alertas y estadísticas en SQLite
+7. **Visualización**: `ServidorWeb` expone una API REST que el dashboard consulta cada 5 segundos
+
+### Hilos de Ejecución
+
+El sistema ejecuta múltiples hilos concurrentes:
+- **Hilo principal**: Coordina el sistema y maneja señales
+- **Hilo de captura**: Ejecuta el bucle de captura de paquetes
+- **Hilo web**: Servidor Flask para el dashboard
+- **Hilo de estadísticas**: Calcula y guarda estadísticas cada 60 segundos
+
+**Autora: Julia Gastellu - 2025**
